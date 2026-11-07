@@ -109,7 +109,7 @@ input[type=range]{width:100%;accent-color:var(--blue);cursor:pointer;height:5px}
   .sample-info{line-height:1.8}
 }
 .stadium-viewport{position:relative;margin:14px 0;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#0b1725}
-#stadium-3d{display:block;width:100%;height:410px;touch-action:none;cursor:grab;outline-offset:-4px}
+#stadium-3d{display:block;width:100%;height:470px;touch-action:none;cursor:grab;outline-offset:-4px}
 #stadium-3d.dragging{cursor:grabbing}
 .stadium-panel .panel-title{flex-wrap:wrap}
 .view-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:10px 16px;margin-left:auto;max-width:100%}
@@ -120,7 +120,7 @@ input[type=range]{width:100%;accent-color:var(--blue);cursor:pointer;height:5px}
 .view-zoom button:focus-visible{outline-offset:2px}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 @media(max-width:620px){
-  #stadium-3d{height:330px}
+  #stadium-3d{height:350px}
   .stadium-panel h2{font-size:13px}
   .view-actions{gap:10px}
   .view-actions button{font-size:10px}
@@ -131,20 +131,22 @@ input[type=range]{width:100%;accent-color:var(--blue);cursor:pointer;height:5px}
 .stadium-picker select:focus-visible{outline:2px solid var(--blue)}
 .stadium-picker--compact{display:block;flex:0 1 184px;width:184px;min-width:0;margin-top:0}
 .stadium-picker--compact select{font-size:12px;padding:6px 26px 6px 9px}
-.weather-controls{margin:0 0 12px;font-size:11px;color:var(--muted)}
-.weather-controls summary{cursor:pointer;padding:4px 0;width:fit-content}
-.weather-controls summary span{margin-left:10px;color:var(--text)}
-.weather-fields{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) minmax(115px,1.5fr);gap:10px;margin-top:10px}
-.weather-fields label{display:block;min-width:0}
-.weather-input{display:flex;align-items:center;gap:4px}
-.weather-input,.weather-fields select{margin-top:4px;border:1px solid var(--border);border-radius:6px;background:#0b1523;padding:5px 7px;height:33px}
-.weather-input input{width:100%;min-width:0;padding:0;border:0;color:var(--text);background:transparent;font:inherit;font-variant-numeric:tabular-nums}
-.weather-input span{font-size:10px;flex-shrink:0}
-.weather-fields select{width:100%;color:var(--text);font:inherit}
-.weather-fields input:focus-visible,.weather-fields select:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
-.weather-controls .warning{margin:6px 0 0;font-size:11px}
-@media(max-width:1000px){.weather-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.weather-fields label:last-child{grid-column:1/-1}}
 @media(max-width:620px){
   .stadium-picker--compact{flex-basis:150px;width:150px}
   .stadium-picker--compact select{font-size:11px}
 }
+
+/* Stadium presentation and playback. */
+.stadium-panel{background:linear-gradient(145deg,#132432,#0e1a27 70%);border-color:#2c414e}
+.stadium-viewport{margin-bottom:0;border-color:#2b454c;border-radius:14px;box-shadow:inset 0 1px #ffffff08,0 15px 40px #00000020}
+.view-zoom button{background:#102530d9;border-color:#45636b;backdrop-filter:blur(10px);border-radius:10px}
+.flight-playback{display:flex;align-items:center;gap:12px;padding:13px 0 16px;min-width:0}
+.flight-playback button{height:32px;flex-shrink:0;display:grid;place-items:center;cursor:pointer;border-radius:7px;font-size:11px}
+.play-button{min-width:72px;padding:0 10px;background:#193b42;color:#a1ead7;border:1px solid #365c62}
+.play-button:hover{background:#245059}
+.replay-button{width:30px;padding:5px;background:transparent;color:#9bb7be;border:1px solid transparent}
+.replay-button:hover{background:#19303e;color:#ecf2fa}
+.replay-button svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.flight-playback input{flex:1;min-width:30px;accent-color:#88dfc8;margin:0;height:4px}
+.flight-playback output{flex-shrink:0;font-size:10px;color:#9bb7be;font-variant-numeric:tabular-nums;font-family:"Segoe UI",sans-serif;min-width:83px;text-align:right}
+@media(max-width:620px){.flight-playback{gap:7px}.play-button{min-width:60px}.flight-playback output{font-size:9px;min-width:72px}.view-zoom{right:10px;bottom:10px}}

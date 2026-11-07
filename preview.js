@@ -2,25 +2,25 @@
   'use strict';
   const data = window.HITPREDICT_DESIGN_DATA;
   const byId = id => document.getElementById(id);
-  if (!data || !window.HitPredictEngine || !window.BaseballTrajectory || !window.BaseballStadium3D) {
+  if (!data || !window.HitPredictEngine || !window.BaseballTrajectory || !window.BaseballStadium3D || !window.HitPredictOutcomes) {
     byId('load-error').hidden = false;
     document.querySelectorAll('input,button,select').forEach(element => { element.disabled = true; });
     return;
   }
   let speed = 160, angle = 20, direction = 0, batterHand = 'R';
-  const weather={...window.BaseballTrajectory.weatherDefaults};
-  const weatherFields=[
-    ['weather-temperature','temperatureC',-10,45,1,'기온'],
-    ['weather-humidity','relativeHumidity',0,100,1,'습도'],
-    ['weather-pressure','pressureHpa',900,1050,1,'기압'],
-    ['weather-wind-speed','windSpeedMps',0,15,.5,'풍속']
-  ];
   const pct = value => `${(value * 100).toFixed(1)}%`;
   const number = value => value.toLocaleString('ko-KR');
   const text = (id, value) => { byId(id).textContent = value; };
   const classProbability = (probabilities, label) => probabilities[data.classes.indexOf(label)] || 0;
   const sumClasses = (probabilities, labels) => labels.reduce((sum, label) => sum + classProbability(probabilities, label), 0);
-  const stadiumView = window.BaseballStadium3D.create(byId('stadium-3d'));
+  const stadiumView = window.BaseballStadium3D.create(byId('stadium-3d'), {
+    onPlayback({playing,time,duration}) {
+      text('flight-play', playing ? '일시정지' : '재생');
+      byId('flight-play').setAttribute('aria-label',playing?'타구 일시정지':'타구 재생');
+      byId('flight-progress').value=duration?Math.round(time/duration*1000):0;
+      text('flight-clock',time.toFixed(2)+' / '+duration.toFixed(2)+' s');
+    }
+  });
   const stadiumSelect = byId('stadium-select');
   for (const stadium of window.KBOStadiums) {
     const option = document.createElement('option');
@@ -31,14 +31,17 @@
   stadiumSelect.value = window.KBOStadiums[0].id;
   stadiumSelect.addEventListener('change', () => {
     stadiumView.setStadium(stadiumSelect.value);
-    describeTrajectory();
+    update();
   });
   byId('view-top').addEventListener('click', () => stadiumView.top());
   byId('view-reset').addEventListener('click', () => stadiumView.reset());
   byId('view-zoom-in').addEventListener('click', () => stadiumView.zoom(0.85));
   byId('view-zoom-out').addEventListener('click', () => stadiumView.zoom(1.18));
+  byId('flight-play').addEventListener('click', () => stadiumView.togglePlayback());
+  byId('flight-replay').addEventListener('click', () => stadiumView.replay());
+  byId('flight-progress').addEventListener('input', event => stadiumView.seek(Number(event.target.value)/1000));
   function renderTrajectory() {
-    const flight = window.BaseballTrajectory.simulate(speed, angle, direction, {batterHand,weather});
+    const flight = window.BaseballTrajectory.simulate(speed, angle, direction, {batterHand});
     stadiumView.setFlight(flight);
     text('flight-distance', `${flight.distance.toFixed(1)} m`);
     text('flight-height', `${flight.maxHeight.toFixed(1)} m`);
@@ -47,8 +50,6 @@
     text('flight-spin-label', spin.backspinRpm < 0 ? '톱스핀' : '백스핀');
     text('flight-backspin', `${number(Math.round(Math.abs(spin.backspinRpm)))} rpm`);
     text('flight-sidespin', `${number(Math.round(spin.sidespinRpm))} rpm`);
-    const windLabels={'0':'홈 → 외야','180':'외야 → 홈','90':'좌측 → 우측','-90':'우측 → 좌측'};
-    text('weather-summary', `${weather.temperatureC}°C · ${weather.windSpeedMps===0?'무풍':`${weather.windSpeedMps}m/s ${windLabels[weather.windDirectionDeg]}`}`);
     describeTrajectory();
     return flight;
   }
@@ -82,14 +83,17 @@
     byId('direction').value = direction;
     byId('batter-hand').value = batterHand;
     const flight = renderTrajectory();
-    const probabilities = flight.isFoul ? data.classes.map(() => 0) : window.HitPredictEngine.predict(data, [speed / 1.609344, angle, direction]);
+    const modelProbabilities = window.HitPredictEngine.predict(data, [speed / 1.609344, angle, direction]);
+    const stadium = window.KBOStadiums.find(item => item.id === stadiumSelect.value);
+    const adjusted = window.HitPredictOutcomes.adjust(data, modelProbabilities, flight, stadium);
+    const probabilities = adjusted.probabilities;
     const value = sumClasses(probabilities, data.hit_classes);
     text('hit-probability', (value * 100).toFixed(1));
-    text('condition-label', `${speed} km/h · 발사각 ${angle}° · 방향 ${direction}°${flight.isFoul?' · 파울':''}`);
+    text('condition-label', `${speed} km/h · 발사각 ${angle}° · 방향 ${direction}°${adjusted.isFoul?' · 파울':''}`);
     text('hit-small', pct(value));
     text('non-hit', pct(1 - value));
     byId('hit-bar').style.width = `${value * 100}%`;
-    renderOutcomes(probabilities, flight.isFoul);
+    renderOutcomes(probabilities, adjusted.isFoul);
     const observed = { count: 0, hits: 0 };
     for (const [s, a, d, hit] of data.observations) {
       if (Math.abs(s - speed / 1.609344) <= 5 / 1.609344 && Math.abs(a - angle) <= 2.5 && Math.abs(d - direction) <= 5) {
@@ -127,33 +131,11 @@
   }
   bindInput('speed', 100, 200);
   bindInput('angle', -40, 70);
-  function syncWeatherInputs(){
-    for(const [id,key] of weatherFields)byId(id).value=weather[key];
-    byId('weather-wind-direction').value=weather.windDirectionDeg;
-    byId('weather-error').hidden=true;
-  }
-  for(const [id,key,min,max,step,label] of weatherFields){
-    byId(id).addEventListener('input',event=>{
-      const raw=String(event.target.value),value=Number(raw);
-      if(raw.trim()===''||!Number.isFinite(value)||value<min||value>max||
-        Math.abs((value-min)/step-Math.round((value-min)/step))>1e-8){
-        text('weather-error',`${label}: ${min}~${max} 범위에서 ${step} 단위로 입력하세요.`);
-        byId('weather-error').hidden=false;return;
-      }
-      weather[key]=value;byId('weather-error').hidden=true;update();
-    });
-  }
-  byId('weather-wind-direction').addEventListener('change',event=>{
-    const value=Number(event.target.value);
-    if(![0,180,90,-90].includes(value))return;
-    weather.windDirectionDeg=value;update();
-  });
   byId('direction').addEventListener('input', event => { direction = Number(event.target.value); update(); });
   byId('batter-hand').addEventListener('change', event => { batterHand = event.target.value; update(); });
   byId('reset').addEventListener('click', () => {
     speed=160;angle=20;direction=0;batterHand='R';
-    Object.assign(weather,window.BaseballTrajectory.weatherDefaults);syncWeatherInputs();update();
+    update();
   });
-  syncWeatherInputs();
   update();
 })();
